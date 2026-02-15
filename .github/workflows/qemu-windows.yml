@@ -1,0 +1,41 @@
+name: Run Windows 10 in QEMU
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-qemu:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install QEMU
+      run: |
+        sudo apt update
+        sudo apt install -y qemu-system-x86 qemu-utils
+
+    - name: Verify QEMU installation
+      run: qemu-system-x86_64 --version
+
+    - name: Run Windows 10 VM with VNC
+      run: |
+        echo "Starting QEMU VM..."
+        echo "VNC will be available at: 127.0.0.1:5900 (display :0)"
+        qemu-system-x86_64 \
+          -hda win10pro.qcow2 \
+          -m 4096 \
+          -smp 2 \
+          -enable-kvm \
+          -vnc :0 \
+          -boot c \
+          -net nic \
+          -net user \
+          -display none &
+        
+        sleep 30
+        echo "VM should now be running."
+
+    - name: Keep runner alive (for VNC access)
+      run: sleep 3600
