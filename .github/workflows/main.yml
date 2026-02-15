@@ -1,0 +1,42 @@
+name: Windows 11 VNC via Tailscale
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  vnc-setup:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Tailscale
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope Process -Force
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale-setup.exe"
+          Start-Process -FilePath ".\tailscale-setup.exe" -ArgumentList "/quiet", "/norestart" -Wait
+
+      - name: Authenticate Tailscale
+        shell: cmd
+        run: |
+          "C:\Program Files\Tailscale\tailscale.exe" up --authkey ${{ secrets.TAILSCALE_AUTH_KEY }} --accept-routes
+
+      - name: Install and Configure VNC Server
+        run: |
+          choco install tightvnc -y
+          # Setting the password (20 characters)
+          $pass = "H8pZ$mQ2n9#L1vX6yR4w"
+          & "C:\Program Files\TightVNC\tvnserver.exe" -install
+          & "C:\Program Files\TightVNC\tvnserver.exe" -controlservice -setpassword $pass
+          & "C:\Program Files\TightVNC\tvnserver.exe" -run
+
+      - name: Get Tailscale IP & Keep Alive
+        run: |
+          $tsIp = (& "C:\Program Files\Tailscale\tailscale.exe" ip -4)
+          echo "Your VNC IP Address is: $tsIp"
+          echo "Port: 5900"
+          echo "Username: Windows11"
+          # Prevents the job from closing immediately (runs for 6 hours)
+          sleep 21600
