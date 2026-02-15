@@ -1,0 +1,47 @@
+name: QEMU Windows 11 VNC
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  run-vm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install QEMU & KVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils cpu-checker
+          # Verify if KVM is available for acceleration
+          kvm-ok
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+
+      - name: Launch QEMU VM
+        run: |
+          # -vnc 127.0.0.1:1 maps to port 5901
+          sudo qemu-system-x86_64 \
+            -m 4096 \
+            -smp 2 \
+            -enable-kvm \
+            -cpu host,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time \
+            -drive file=Win10pro.qcow2,format=qcow2 \
+            -vnc 127.0.0.1:1 \
+            -net nic,model=virtio -net user \
+            -device usb-ehci,id=usb,bus=pci.0,addr=0x7 -device usb-tablet \
+            -daemonize
+
+      - name: Connection Details & Keep Alive
+        run: |
+          TS_IP=$(tailscale ip -4)
+          echo "------------------------------------------"
+          echo "VNC Server is running at: $TS_IP:5901"
+          echo "Password: (As configured in your image)"
+          echo "------------------------------------------"
+          # Keep the runner alive for 6 hours
+          sleep 21600
