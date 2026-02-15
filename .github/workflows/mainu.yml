@@ -1,0 +1,51 @@
+name: Windows 11 QEMU via Tailscale
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  run-qemu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install QEMU & KVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils cpu-checker
+          kvm-ok # Verifies hardware acceleration is active
+
+      - name: Setup Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=tskey-auth-kDwEbAxFo121CNTRL-iH7yzADjGqfM97pajRF5qfUkBYfarueST
+
+      - name: Launch Windows 11 VM
+        run: |
+          # -vnc 127.0.0.1:1 = Port 5901
+          # hv_ flags are for Windows optimization
+          sudo qemu-system-x86_64 \
+            -m 4096 \
+            -smp 2 \
+            -enable-kvm \
+            -cpu host,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time \
+            -drive file=Win10pro.qcow2,format=qcow2 \
+            -vnc 127.0.0.1:1,password=on \
+            -net nic,model=virtio -net user \
+            -device usb-ehci,id=usb,bus=pci.0,addr=0x7 -device usb-tablet \
+            -monitor stdio \
+            -daemonize
+          
+          # Set VNC password in QEMU monitor
+          echo "change vnc password k9#R2vX6yR4wH8pZ$mQ2" | sudo socat - UNIX-CONNECT:/tmp/qemu-monitor.sock || true
+
+      - name: Connection & Keep Alive
+        run: |
+          TS_IP=$(tailscale ip -4)
+          echo "------------------------------------------------"
+          echo "VNC Address: $TS_IP:5901"
+          echo "VNC Password: k9#R2vX6yR4wH8pZ$mQ2"
+          echo "------------------------------------------------"
+          # Keeps the VM running for the maximum allowed time (6 hours)
+          sleep 21600
