@@ -23,7 +23,7 @@ jobs:
       run: |
         echo "Starting QEMU VM..."
         echo "VNC will be available at: 127.0.0.1:5900 (display :0)"
-        qemu-system-x86_64 \
+         sudo qemu-system-x86_64 \
           -hda win10pro.qcow2 \
           -m 4096 \
           -smp 2 \
