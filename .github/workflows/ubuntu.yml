@@ -1,0 +1,53 @@
+name: Ubuntu VPS 20Char Password
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ubuntu-vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create ubuntu User
+        run: |
+          sudo useradd -m -s /bin/bash ubuntu
+          echo "ubuntu:UbuntU@2026#TSecure!" | sudo chpasswd
+          sudo usermod -aG sudo ubuntu
+
+      - name: Install OpenSSH Server
+        run: |
+          sudo apt update
+          sudo apt install -y openssh-server
+          sudo systemctl enable ssh
+          sudo systemctl start ssh
+
+      - name: Enable Password Authentication
+        run: |
+          sudo sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+          sudo systemctl restart ssh
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Start Tailscale
+        run: |
+          sudo tailscale up --authkey=${{ secrets.TS_AUTHKEY }} --ssh
+
+      - name: Show Connection Details
+        run: |
+          echo "===== SSH DETAILS ====="
+          echo "Tailscale IP:"
+          tailscale ip -4
+          echo "Username: ubuntu"
+          echo "Password: UbuntU@2026#TSecure!"
+          echo "======================="
+
+      - name: Keep Ubuntu Running
+        run: |
+          sleep 21600
