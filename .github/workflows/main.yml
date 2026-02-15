@@ -30,7 +30,7 @@ jobs:
       - name: Start and Authenticate Tailscale
         run: |
           Start-Service Tailscale
-          tailscale up --authkey ${{ secrets.TS_AUTHKEY }} --accept-routes
+          cd dhhd--authkey ${{ secrets.TS_AUTHKEY }} --accept-routes
 
       # 5. Install TightVNC server
       - name: Install TightVNC
