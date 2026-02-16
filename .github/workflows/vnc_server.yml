@@ -1,0 +1,48 @@
+name: Windows VNC Server (PIN 2015)
+on: 
+  workflow_dispatch: # Manually start the server
+
+jobs:
+  setup-vnc:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Tailscale & Authenticate
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+
+      - name: Install & Configure VNC Server
+        run: |
+          # Install UltraVNC via Chocolatey
+          choco install ultravnc -y
+          
+          # Set VNC Server PIN/Password to 2015
+          # UltraVNC requires a specific directory for the service
+          $vncPath = "C:\Program Files\uvnc bvba\UltraVNC"
+          & "$vncPath\winvnc.exe" -install
+          & "$vncPath\winvnc.exe" -password 2015
+          
+          # Restart service to apply PIN
+          Restart-Service -Name "uvnc_service" -Force
+
+      - name: Verify VNC Accessibility & Get IP
+        run: |
+          echo "VNC Server is running on Port: 5900"
+          echo "Your Tailscale VNC Server IP is:"
+          tailscale ip -4
+          echo "Use PIN: 2015 to connect."
+
+      - name: Maintain Connection (Keep-Alive)
+        run: |
+          # Keeps the Windows 10/11 environment running for 6 hours
+          $timeout = New-TimeSpan -Hours 6
+          $stopwatch = [diagnostics.stopwatch]::StartNew()
+          while ($stopwatch.Elapsed -lt $timeout) {
+            Write-Host "Server Active. Tailscale IP: $(tailscale ip -4)"
+            Start-Sleep -Seconds 120
+          }
