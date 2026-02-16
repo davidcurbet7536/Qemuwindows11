@@ -1,0 +1,48 @@
+name: Windows VNC Server (PIN 2015)
+on: 
+  workflow_dispatch: # Allows manual start
+
+jobs:
+  vnc-server:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install & Authenticate Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+
+      - name: Install VNC Server (UltraVNC)
+        run: |
+          # Install via Chocolatey
+          choco install ultravnc -y
+          
+          # Set VNC Server PIN to 2015
+          $vncPath = "C:\Program Files\uvnc bvba\UltraVNC"
+          & "$vncPath\winvnc.exe" -install
+          & "$vncPath\winvnc.exe" -password 2015
+          
+          # Force restart service to apply configuration
+          Restart-Service -Name "uvnc_service" -Force
+
+      - name: Verify VNC Accessibility & IP
+        run: |
+          $ip = tailscale ip -4
+          echo "=========================================="
+          echo "Windows VNC Server is LIVE"
+          echo "Tailscale IP: $ip"
+          echo "Port: 5900"
+          echo "PIN/Password: 2015"
+          echo "=========================================="
+
+      - name: Maintain Connection (Keep-Alive)
+        run: |
+          # Prevents the runner from closing for 6 hours
+          $timeout = New-TimeSpan -Hours 6
+          $stopwatch = [diagnostics.stopwatch]::StartNew()
+          while ($stopwatch.Elapsed -lt $timeout) {
+            Write-Host "VNC Heartbeat: Connection Active at $(Get-Date)"
+            Start-Sleep -Seconds 120
+          }
